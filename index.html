@@ -1,197 +1,239 @@
-<!DOCTYPE HTML>
-
+<!DOCTYPE html>
 <html>
-
 <head>
-    <title>Editorial by HTML5 UP</title>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-    <link rel="stylesheet" href="./style1.css" />
+    <meta charset="utf-8">
+    <title>滑块下落游戏</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+
+        #score {
+            font-size: 24px;
+            margin-top: 20px;
+        }
+
+        #game-over {
+            display: none;
+            font-size: 48px;
+            margin-top: 200px;
+        }
+
+        #game-over p {
+            font-size: 24px;
+            margin-top: 50px;
+        }
+
+        button {
+            font-size: 24px;
+            margin-top: 50px;
+        }
+    </style>
 </head>
+<body>
+<canvas id="game"></canvas>
+<div id="score"></div>
+<div id="game-over">
+    <p>得分: <span id="final-score"></span></p>
+    <button id="restart">重新开始</button>
+</div>
 
-<body class="is-preload">
+<script>
+    // 游戏配置
+    var FPS = 60;
+    var BALL_RADIUS = 10;
+    var BALL_SPEED_MIN = 2;
+    var BALL_SPEED_MAX = 6;
+    var BALL_COLORS = ['red', 'blue'];
+    var SLIDER_WIDTH = 70;
+    var SLIDER_HEIGHT = 10;
+    var SLIDER_SPEED = 8;
+    var FONT_NAME = 'Arial';
 
-    <!-- Wrapper -->
-    <div id="wrapper">
+    // 游戏颜色
+    var BLACK = '#000000';
+    var WHITE = '#ffffff';
 
-        <!-- Main -->
-        <div id="main">
-            <div class="inner">
+    // 初始化游戏
+    var canvas = document.getElementById('game');
+    var ctx = canvas.getContext('2d');
+    var scoreEl = document.getElementById('score');
+    var gameOverEl = document.getElementById('game-over');
+    var finalScoreEl = document.getElementById('final-score');
+    var restartButton = document.getElementById('restart');
+    var slider = {
+        x: canvas.width / 2 - SLIDER_WIDTH / 2,
+        y: 800,
+        speed: 0
+    };
+    var balls = [];
+    var score = 0;
+    var gameRunning = false;
 
-                <!-- Header -->
-                <header id="header">
-                    <a href="index.html" class="logo"><strong>Recommendations</strong> from Hermes</a>
-                    <ul class="icons">
-                        <li><a href="#"><span class="label">Twitter</span></a></li>
-                        <li><a href="#"><span class="label">Facebook</span></a></li>
-                        <li><a href="#"><span class="label">Snapchat</span></a></li>
-                        <li><a href="#"><span class="label">Instagram</span></a></li>
-                    </ul>
-                </header>
+    // 加载游戏资源
+    var bounceSound = new Audio('bounce.wav');
+    // var backgroundMusic = new Audio('background.mp3');
+    // backgroundMusic.loop = true;
 
-                <!-- Banner -->
-                <section id="banner">
-                    <div class="content">
-                        <header>
-                            <h1>Hi, I’m member of the family of Hermes</h1>
-                        </header>
-                        <p>Aenean ornare velit lacus, ac varius enim ullamcorper eu. Proin aliquam facilisis ante interdum congue. Integer mollis, nisl amet convallis, porttitor magna ullamcorper, amet egestas mauris. Ut magna finibus nisi nec lacinia. Nam
-                            maximus erat id euismod egestas. Pellentesque sapien ac quam. Lorem ipsum dolor sit nullam.</p>
-                        <ul class="actions">
-                            <li><a href="#" class="button">Learn More</a></li>
-                        </ul>
-                    </div>
-                    <span class="image">
-										<img src="pic10.jpg"  alt="" />
-									</span>
-                </section>
+    // 定义游戏函数
+    function showStartScreen() {
+        ctx.fillStyle = BLACK;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        drawText('滑块下落游戏', 48, canvas.width / 2, canvas.height / 4);
+        drawText('使用左右箭头键移动滑块，接住红色物体得分，蓝色物体游戏结束。', 24, canvas.width / 2, canvas.height / 2);
+        drawText('按任意键开始游戏', 24, canvas.width / 2, canvas.height * 3 / 4);
+        document.addEventListener('keydown', startGame);
+    }
 
-                <!-- Section -->
-                <section>
-                    <header class="major">
-                        <h2>Features</h2>
-                    </header>
-                    <div class="features">
-                        <article>
-                            <span class="Luxury"></span>
-                            <div class="content">
-                                <h3>Luxury</h3>
-                                <p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
-                            </div>
-                        </article>
-                        <article>
-                            <span class="HighQuality"></span>
-                            <div class="content">
-                                <h3>High Quality</h3>
-                                <p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
-                            </div>
-                        </article>
-                        <article>
-                            <span class="LimitedEdition"></span>
-                            <div class="content">
-                                <h3>Limited Edition</h3>
-                                <p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
-                            </div>
-                        </article>
-                        <article>
-                            <span class="AfterService"></span>
-                            <div class="content">
-                                <h3>After Service</h3>
-                                <p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
-                            </div>
-                        </article>
-                    </div>
-                </section>
+    function startGame() {
+        document.removeEventListener('keydown', startGame);
+        gameRunning = true;
+        // backgroundMusic.play();
+    }
 
-                <!-- Section -->
-                <section>
-                    <header class="major">
-                        <h2>Goods from Hermes</h2>
-                    </header>
-                    <div class="posts">
-                        <article class="article">
-                            <a href="#" class="image"><img style="width: 600px;" src="pic01.jpg" alt="" /></a>
-                            <h3>Jewels</h3>
-                            <p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
-                            <ul class="actions">
-                                <li><a href="#" class="button">More</a></li>
-                            </ul>
-                        </article>
-                        <article class="article">
-                            <a href="#" class="image"><img style="width: 600px;" src="pic02.jpg" alt="" /></a>
-                            <h3>Pearls</h3>
-                            <p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
-                            <ul class="actions">
-                                <li><a href="#" class="button">More</a></li>
-                            </ul>
-                        </article>
-                        <div class="si">
-                            <article>
-                                <a href="#" class="image"><img src="pic03.jpg" alt="" /></a>
-                                <h3>Bags</h3>
-                                <p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
-                                <ul class="actions">
-                                    <li><a href="#" class="button">More</a></li>
-                                </ul>
-                            </article>
-                            <article>
-                                <a href="#" class="image"><img src="pic04.jpg" alt="" /></a>
-                                <h3>Cloth</h3>
-                                <p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
-                                <ul class="actions">
-                                    <li><a href="#" class="button">More</a></li>
-                                </ul>
-                            </article>
-                            <article>
-                                <a href="#" class="image"><img src="pic05.jpg" alt="" /></a>
-                                <h3>Shoes</h3>
-                                <p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
-                                <ul class="actions">
-                                    <li><a href="#" class="button">More</a></li>
-                                </ul>
-                            </article>
-                            <article>
-                                <a href="#" class="image"><img src="pic06.jpg" alt="" /></a>
-                                <h3>Hats</h3>
-                                <p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
-                                <ul class="actions">
-                                    <li><a href="#" class="button">More</a></li>
-                                </ul>
-                            </article>
-                        </div>
-                    </div>
-                </section>
+    function showGameOverScreen() {
+        gameRunning = false;
+        // backgroundMusic.pause();
+        ctx.fillStyle = BLACK;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        drawText('游戏结束', 48, canvas.width / 2, canvas.height / 4);
+        drawText('得分: ' + score, 24, canvas.width / 2, canvas.height / 2);
+        finalScoreEl.innerText = score;
+        gameOverEl.style.display = 'block';
+        restartButton.addEventListener('click', restartGame);
+    }
 
-            </div>
-        </div>
+    function restartGame() {
+        balls = [];
+        score = 0;
+        slider.x = canvas.width / 2 - SLIDER_WIDTH / 2;
+        slider.speed = 0;
+        gameOverEl.style.display = 'none';
+        restartButton.removeEventListener('click', restartGame);
+        showStartScreen();
+    }
 
-        <!-- Sidebar -->
-        <div id="sidebar">
-            <div class="inner">
+    function drawText(text, size, x, y) {
+        ctx.font = size + 'px ' + FONT_NAME;
+        ctx.fillStyle = WHITE;
+        ctx.textAlign = 'center';
+        ctx.fillText(text, x, y);
+    }
 
-                <!-- Search -->
-                <section id="search" class="alt">
-                    <form method="post" action="#">
-                        <input type="text" name="query" id="query" placeholder="Search" />
-                    </form>
-                </section>
+    function drawSlider() {
+        ctx.fillStyle = BLACK;
+        ctx.fillRect(slider.x, slider.y, SLIDER_WIDTH, SLIDER_HEIGHT);
+    }
 
-                <!-- Menu -->
-                <nav id="menu">
-                    <header class="major">
-                        <h2>Menu</h2>
-                    </header>
-                    <ul style="width: 100%;display: flex;justify-content: space-between;align-items: center;">
-                        <li><a href="index.html">Homepage</a></li>
-                        <li><a href="generic.html">Generic</a></li>
-                        <li><a href="elements.html">Elements</a></li>
-                    </ul>
-                </nav>
+    function drawBall(ball) {
+        ctx.fillStyle = ball.color;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, BALL_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+    }
 
-                <!-- Section -->
-                <section>
-                    <header class="major">
-                        <h2>Get in touch</h2>
-                    </header>
-                    <p>Sed varius enim lorem ullamcorper dolore aliquam aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin sed aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
-                    <ul class="contact">
-                        <li class="envelope"><a href="#">information@untitled.tld</a></li>
-                        <li class="phone">(000) 000-0000</li>
-                        <li class="home">1234 Somewhere Road #8254<br /> Nashville, TN 00000-0000</li>
-                    </ul>
-                </section>
+    function updateSlider() {
+        if (slider.speed < 0 && slider.x > 0) {
+            slider.x += slider.speed;
+        } else if (slider.speed > 0 && slider.x < canvas.width - SLIDER_WIDTH) {
+            slider.x += slider.speed;
+        }
+    }
 
-                <!-- Footer -->
-                <footer id="footer">
-                    <p class="copyright">&copy; Untitled. All rights reserved. Demo Images: <a href="https://unsplash.com">Unsplash</a>. Design: <a href="#">HTML5</a>.</p>
-                </footer>
+    function updateBalls() {
+        for (var i = 0; i < balls.length; i++) {
+            var ball = balls[i];
+            // ball.x += ball.vx;
+            ball.y += ball.vy;
+            if (ball.y > canvas.height + BALL_RADIUS) {
+                balls.splice(i, 1);
+                i--;
+            } else if (ball.x + BALL_RADIUS > slider.x && ball.x - BALL_RADIUS < slider.x + SLIDER_WIDTH ) {
+                if (ball.color === 'red') {
+                    score += 10;
+                    bounceSound.play();
+                    balls.splice(i, 1);
+                    i--;
+                } else {
+                    // showGameOverScreen();
+                    // return;
+                }
+            }
+        }
+        if (balls.length < 10) {
+            var ball = {
+                x: Math.random() * (canvas.width - BALL_RADIUS * 2) + BALL_RADIUS,
+                y: -BALL_RADIUS,
+                vx: Math.random() * (BALL_SPEED_MAX - BALL_SPEED_MIN) + BALL_SPEED_MIN,
+                vy: Math.random() * (BALL_SPEED_MAX - BALL_SPEED_MIN) + BALL_SPEED_MIN,
+                color: BALL_COLORS[Math.floor(Math.random() * BALL_COLORS.length)]
+            };
+            balls.push(ball);
+        }
+    }
 
-            </div>
-        </div>
+    function updateScore() {
+        scoreEl.innerText = '得分: ' + score;
+    }
 
-    </div>
+    function clearCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
 
+    function draw() {
+        clearCanvas();
+        drawSlider();
+        for (var i = 0; i < balls.length; i++) {
+            drawBall(balls[i]);
+        }
+        updateScore();
+        if (gameRunning) {
+            updateSlider();
+            updateBalls();
+        }
+        requestAnimationFrame(draw);
+    }
 
+    // 开始游戏
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    showStartScreen();
+    requestAnimationFrame(draw);
+
+    // 监听窗口大小变化
+    window.addEventListener('resize', function() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+
+    // 监听键盘事件
+    document.addEventListener('keydown', function(event) {
+        if (event.keyCode === 37) { // 左箭头键
+            slider.speed = -SLIDER_SPEED;
+        } else if (event.keyCode === 39) { // 右箭头键
+            slider.speed = SLIDER_SPEED;
+        }
+    });
+
+    document.addEventListener('keyup', function(event) {
+        if (event.keyCode === 37 || event.keyCode === 39) {
+            slider.speed = 0;
+        }
+    });
+
+    // 监听鼠标事件
+    canvas.addEventListener('mousemove', function(event) {
+        var rect = canvas.getBoundingClientRect();
+        var mouseX = event.clientX - rect.left;
+        if (mouseX < SLIDER_WIDTH / 2) {
+            slider.x = 0;
+        } else if (mouseX > canvas.width - SLIDER_WIDTH / 2) {
+            slider.x = canvas.width - SLIDER_WIDTH;
+        } else {
+            slider.x = mouseX - SLIDER_WIDTH / 2;
+        }
+    });
+
+</script>
 </body>
-
 </html>
